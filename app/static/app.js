@@ -819,6 +819,15 @@ const titles = {
 function render() {
   const active = document.activeElement;
   const focusId = active?.id;
+  const focusAttribute = [
+    "data-filter",
+    "data-action",
+    "data-nav",
+    "data-compare",
+  ].find((k) => active?.hasAttribute(k));
+  const focusValue = focusAttribute
+    ? active.getAttribute(focusAttribute)
+    : null;
   const selection = active?.selectionStart;
   if (!titles[state.view]) state.view = "overview";
   const [title, subtitle] = titles[state.view];
@@ -875,9 +884,13 @@ function render() {
           method,
         }[state.view]()
   }<footer class="footer"><span>Thank you, David · WIC data workspace</span><span>Report scope and source dates stay with the data.</span></footer></main></div>`;
-  if (focusId) {
-    const el = document.getElementById(focusId);
-    if (el) {
+  if (focusId || focusAttribute) {
+    const el = focusId
+      ? document.getElementById(focusId)
+      : document.querySelector(
+          `[${focusAttribute}="${CSS.escape(focusValue)}"]`
+        );
+    if (el && !$("#dialog").open) {
       el.focus();
       if (typeof selection === "number")
         try {
@@ -1646,7 +1659,7 @@ document.addEventListener("click", async (event) => {
 document.addEventListener("change", async (event) => {
   const el = event.target;
   try {
-    if (el.dataset.filter) {
+    if (el.dataset.filter && el.dataset.filter !== "q") {
       state.filters[el.dataset.filter] = el.value;
       state.page = 0;
       render();
@@ -1682,18 +1695,45 @@ document.addEventListener("change", async (event) => {
   }
 });
 let searchTimer;
+let pointerIsDown = false;
+document.addEventListener(
+  "pointerdown",
+  () => {
+    pointerIsDown = true;
+  },
+  true
+);
+document.addEventListener(
+  "pointerup",
+  () => {
+    pointerIsDown = false;
+  },
+  true
+);
+document.addEventListener(
+  "pointercancel",
+  () => {
+    pointerIsDown = false;
+  },
+  true
+);
 document.addEventListener("input", (event) => {
   const el = event.target;
   if (el.dataset.filter === "q" || el.id === "apl-search") {
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
+    const applySearch = () => {
+      if (pointerIsDown || el.isComposing) {
+        searchTimer = setTimeout(applySearch, 40);
+        return;
+      }
       if (el.id === "apl-search") state.aplSearch = el.value;
       else state.filters.q = el.value;
       state.page = 0;
       render();
       if (state.view === "approvals")
         showCoverage().catch((e) => notify(e.message));
-    }, 160);
+    };
+    searchTimer = setTimeout(applySearch, 160);
   }
   if (
     ["import-state", "import-period", "import-date"].includes(el.id) &&

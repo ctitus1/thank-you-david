@@ -152,3 +152,14 @@ def test_mobile_layout_keyboard_dialog_and_no_external_requests(page,server):
     page.screenshot(path=str(server[2]/'mobile.png'),full_page=True)
     external=page.evaluate("performance.getEntriesByType('resource').map(r=>r.name).filter(u=>!u.startsWith(location.origin))")
     assert not external
+
+
+def test_search_refresh_does_not_interrupt_product_click(page):
+    page.get_by_role('button',name='Products',exact=True).click()
+    page.get_by_placeholder('Product, brand, or UPC').fill('Plain')
+    box=page.locator('.product-name').bounding_box()
+    page.mouse.move(box['x']+10,box['y']+8)
+    page.mouse.down()
+    page.wait_for_timeout(250)
+    page.mouse.up()
+    expect(page.get_by_role('dialog')).to_contain_text('Plain yogurt')

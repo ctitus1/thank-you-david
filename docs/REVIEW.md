@@ -7,8 +7,8 @@ Review date: November 19, 2026.
 - The Indiana import contains 5,293 records across 12 categories. Payments reconcile to $20,352,871.81.
 - The Texas import contains 108 records across three months. Each month reconciles to the published grand total.
 - The California public download contains 6,837 UPC records.
-- The automated suite covers 25 data and browser tests with a separate test database.
-- The browser tests cover search, provenance, exports, scope conflicts, saved views, imports, approvals, weights, and keyboard dismissal.
+- The automated suite covers 26 data and browser tests with a separate test database.
+- The browser tests cover search, provenance, exports, scope conflicts, saved views, imports, approvals, weights, keyboard dismissal, and a search refresh during a product click.
 - Desktop checks used a 1440-pixel viewport. Mobile checks used a 390-pixel viewport with the supplied workbook.
 - All six screens passed the horizontal overflow check at the mobile width.
 - Axe-core 4.10.3 reported zero WCAG A/AA violations on the six screens and the initial import dialog.
