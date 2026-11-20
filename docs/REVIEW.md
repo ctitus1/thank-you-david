@@ -46,3 +46,21 @@ The app does not establish full parity with Lulo’s private service or its nati
 Plain-language lint scores, measured as findings per 100 words: README 0.34, capability comparison 0.63.
 
 Review-record lint score: 0.00 findings per 100 words.
+
+## Standalone HTML review
+
+The shared file embeds three sources and 12,238 normalized records. Its size is approximately 3.2 MiB.
+
+The file includes all styles, scripts, and icons. Original workbook binaries and automatic check settings remain outside the shared file.
+
+Browser checks opened the file with networking disabled. All six screens worked. No HTTP requests or JavaScript errors occurred.
+
+A renamed copy opened in a fresh browser context. It retained the selected view, filters, saved views, and watched products.
+
+Tests cover CSV exports, chart exports, source details, mobile layout, embedded data escaping, and the HTML download endpoint.
+
+The full suite passes 33 tests. The local server remains stopped after the checks.
+
+Sharing instructions received a plain-language lint score of 0.80 findings per 100 words.
+
+Standalone review lint score: 0.00 findings per 100 words.

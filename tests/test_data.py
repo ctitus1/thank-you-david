@@ -158,3 +158,16 @@ def test_apl_numeric_codes_are_rejected():
     b=io.BytesIO();w.save(b)
     with pytest.raises(ingest.DataError,match='UPC is numeric'):
         catalog.parse_reference(b.getvalue(),'apl.xlsx','Sheet','apl','IN','2025-09-01')
+
+
+def test_share_endpoint_downloads_a_self_contained_file(client):
+    content=(HEADER+'00123456789012,Yogurt,Example,Brand,OZ,10,1,2.50,2025-Q3\n').encode()
+    info=client.post('/api/import/inspect?name=example.csv',content=content).json()
+    response=client.post('/api/import/commit',json={'token':info['token'],'sheet':'CSV','state':'IN','period':'2025-Q3'})
+    assert response.status_code==200
+    result=client.get('/api/share')
+    assert result.status_code==200
+    assert 'attachment' in result.headers['content-disposition']
+    assert 'id="wic-data"' in result.text
+    assert '00123456789012' in result.text
+    assert "connect-src 'none'" in result.text

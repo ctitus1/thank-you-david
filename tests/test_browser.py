@@ -156,8 +156,9 @@ def test_mobile_layout_keyboard_dialog_and_no_external_requests(page,server):
 
 def test_search_refresh_does_not_interrupt_product_click(page):
     page.get_by_role('button',name='Products',exact=True).click()
-    page.get_by_placeholder('Product, brand, or UPC').fill('Plain')
+    expect(page.locator('.product-name')).to_be_visible()
     box=page.locator('.product-name').bounding_box()
+    page.get_by_placeholder('Product, brand, or UPC').fill('Plain')
     page.mouse.move(box['x']+10,box['y']+8)
     page.mouse.down()
     page.wait_for_timeout(250)

@@ -2,6 +2,26 @@
 
 A local workspace for WIC redemption analysis and product approval monitoring.
 
+## Share one HTML file
+
+Open [the shared HTML](dist/thank-you-david.html) in a browser. Send that single file to share the interactive snapshot.
+
+Recipients do not need Python, a server, or an internet connection. The file includes normalized data, styles, scripts, and source details.
+
+Filters, comparisons, approval tables, CSV exports, and chart exports work offline. Use **Save a copy** to retain views, watched products, and participation weights.
+
+The HTML contains the source library at export time. Original workbook binaries are not included. Imports and live refresh remain features of the server app.
+
+Rebuild the file without starting a server:
+
+```bash
+.venv/bin/python -m app.share
+```
+
+The output is `dist/thank-you-david.html`. Use `--output` to choose another path. Generated HTML stays outside Git.
+
+When the server is running, **Data sources → Share HTML** downloads the same standalone format.
+
 ## Start
 
 ```bash

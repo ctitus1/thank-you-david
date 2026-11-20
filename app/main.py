@@ -180,6 +180,17 @@ def monitor_config(options: MonitorOptions):
 def monitor_check():
     return monitor.run_once(force=True)
 
+@app.get('/api/share')
+def share_html():
+    from .share import build_html
+    try:
+        content = build_html()
+    except ValueError as error:
+        raise ingest.DataError(str(error))
+    return Response(content, media_type='text/html', headers={
+        'Content-Disposition':'attachment; filename="thank-you-david.html"'})
+
+
 @app.get('/api/backup')
 def backup():
     # SQLite's backup API includes a consistent view of pending WAL data.

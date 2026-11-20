@@ -10,6 +10,7 @@ import {
   download,
   csv,
 } from "./analytics.js";
+const embedded = window.WIC_PORTABLE || null;
 const $ = (s) => document.querySelector(s);
 const esc = (s) =>
   String(s ?? "").replace(
@@ -105,11 +106,19 @@ const state = {
   catalog: [],
   loading: false,
 };
+if (embedded?.initialView) {
+  const saved = embedded.initialView;
+  state.view = location.hash.slice(1) || saved.view || "overview";
+  state.selected = saved.selected || [];
+  state.filters = { ...state.filters, ...saved.filters };
+  state.brands = saved.brands || [];
+}
 let visibleRows = [],
   exportRows = [],
   chartGroups = [],
   toastTimer;
 async function api(path, options = {}) {
+  if (embedded) return embedded.api(path, options);
   const response = await fetch("/api" + path, {
     ...options,
     headers: {
@@ -249,7 +258,11 @@ function scope() {
     state.filters.state,
     "All jurisdictions"
   )}</select><span class="spacer"></span><span class="badge"><span class="dot"></span>${
-    sources.every((s) => !s.origin) ? "Local files" : "Saved source data"
+    embedded
+      ? "Embedded data"
+      : sources.every((s) => !s.origin)
+      ? "Local files"
+      : "Saved source data"
   }</span><button data-action="save-view" class="quiet" title="Save the current report selection and filters">${icon(
     "save"
   )}Save view</button></div>`;
@@ -745,19 +758,33 @@ function sourcesView() {
       origin,
     })
   );
-  return `<div class="source-grid"><section class="panel source-card"><div class="source-icon">${icon(
-    "sources"
-  )}</div><h2>Your files, ready to explore.</h2><p>Import redemption reports, approval snapshots, or a product catalog. Preview the data before you save it.</p><button class="primary" data-action="import">${icon(
-    "plus"
-  )}Import a file</button><button class="quiet" data-action="templates">CSV templates</button></section><section class="panel source-card"><div class="source-icon">${icon(
-    "refresh"
-  )}</div><h2>Fresh from public sources.</h2><p>Download published reports on demand. Each saved version remains available offline.</p><div class="row wrap"><button data-live="tx">Texas redemptions ${icon(
-    "arrow"
-  )}</button><button data-live="ca">California APL ${icon(
-    "arrow"
-  )}</button></div></section></div><section class="panel"><div class="panel-head"><div><h2>Source library <span class="badge">${
+  return `${
+    embedded
+      ? `<section class="panel source-card" style="margin-bottom:24px"><div class="eyebrow">Self-contained HTML</div><h2>Embedded source data</h2><p>Filters, comparisons, charts, and exports work offline. Save a copy to retain your views, watched products, and participation weights.</p><p>This snapshot includes normalized records and source details. New imports and live refresh require the local server app.</p><button class="primary" data-action="share-html">${icon(
+          "download"
+        )}Save a copy</button></section>`
+      : `<div class="source-grid"><section class="panel source-card"><div class="source-icon">${icon(
+          "sources"
+        )}</div><h2>Your files, ready to explore.</h2><p>Import redemption reports, approval snapshots, or a product catalog. Preview the data before you save it.</p><button class="primary" data-action="import">${icon(
+          "plus"
+        )}Import a file</button><button class="quiet" data-action="templates">CSV templates</button></section><section class="panel source-card"><div class="source-icon">${icon(
+          "refresh"
+        )}</div><h2>Fresh from public sources.</h2><p>Download published reports on demand. Each saved version remains available offline.</p><div class="row wrap"><button data-live="tx">Texas redemptions ${icon(
+          "arrow"
+        )}</button><button data-live="ca">California APL ${icon(
+          "arrow"
+        )}</button></div></section></div>`
+  }<section class="panel"><div class="panel-head wrap"><div><h2>Source library <span class="badge">${
     state.sources.length
-  }</span></h2><p>Original files, reporting scope, and import history in one place.</p></div><div class="row"><button data-action="monitor-settings">Automatic checks</button><a href="/api/backup" class="small">Back up workspace ↓</a></div></div>${
+  }</span></h2><p>${
+    embedded
+      ? "Embedded records, report scope, and original file checksums."
+      : "Original files, reporting scope, and import history in one place."
+  }</p></div><div class="row wrap">${
+    embedded
+      ? ""
+      : '<a href="/api/share" class="small" download="thank-you-david.html">Share HTML ↓</a><button data-action="monitor-settings">Automatic checks</button><a href="/api/backup" class="small">Back up workspace ↓</a>'
+  }</div></div>${
     state.sources
       .map(
         (s) =>
@@ -792,7 +819,20 @@ function sourcesView() {
       : ""
   }`;
 }
+function sharedNotes() {
+  const notes = [...new Set(selectedSources().flatMap((s) => s.notes || []))];
+  return `<div class="method panel"><section><div class="eyebrow">About this shared file</div><h2 style="margin-top:12px">A dated, interactive snapshot</h2><p>This HTML contains its data, styles, and code. It works without a server or network connection.</p><p>Exported ${esc(
+    new Date(embedded.exportedAt).toLocaleString()
+  )}. This export date does not change the reporting periods or approval observation dates.</p></section><section><h2>What is included</h2><p>${
+    state.sources.length
+  } sources with normalized records, file names, worksheet names, import dates, and original file checksums. Original spreadsheet binaries are not embedded.</p><p>Search, filters, comparisons, charts, approval tables, CSV exports, and SVG chart exports work offline.</p><p>Views, watched products, and participation weights stay in memory for this session. Use Save a copy to keep them in a new HTML file.</p><p>New imports, live downloads, scheduled checks, and new approval alerts require the local server app.</p></section><section><h2>Coverage of selected reports</h2><ul>${notes
+    .map((n) => `<li>${esc(n)}</li>`)
+    .join(
+      ""
+    )}</ul></section><section><h2>Calculations and comparisons</h2><p>Payments use integer cents. Negative adjustments remain in totals. Missing values stay distinct from zero.</p><p>Share of view uses the selected records as its denominator. It does not measure benefit use or the entire WIC market.</p><p>Package price equals paid amount divided by reported packages. Compare only one category, package size, and unit at a time.</p><p>Units remain separate. Source periods remain intact. Overlapping reports within one jurisdiction cannot be combined.</p><p>Product attributes come from an imported catalog. Joins ignore leading zeros in product codes while source codes remain available.</p></section><section><h2>Approval snapshots</h2><p>Listed means present in an imported snapshot. Not listed does not prove ineligibility. No snapshot means coverage is unknown.</p><p>Changes compare the latest two embedded snapshots for each jurisdiction. This file does not fetch future changes.</p><p>Participation coverage uses the cited counts you supply. Jurisdictions without snapshots produce a labeled lower bound.</p></section></div>`;
+}
 function method() {
+  if (embedded) return sharedNotes();
   const notes = [...new Set(selectedSources().flatMap((s) => s.notes || []))];
   return `<div class="method panel"><section><div class="eyebrow">Read before comparing</div><h2 style="margin-top:12px">The numbers should be explainable.</h2><p>This workspace analyzes aggregate WIC redemption reports and dated Approved Product Lists (APLs). It does not connect to family accounts.</p></section><section><h2>Coverage of the selected reports</h2><ul>${
     notes.map((n) => `<li>${esc(n)}</li>`).join("") ||
@@ -816,6 +856,8 @@ const titles = {
   sources: ["Data sources", "Import, refresh, and review your reports."],
   method: ["Data notes", "Definitions, calculations, and source limits."],
 };
+if (embedded)
+  titles.sources[1] = "Inspect the sources included in this snapshot.";
 function render() {
   const active = document.activeElement;
   const focusId = active?.id;
@@ -861,15 +903,33 @@ function render() {
     )
     .join(
       ""
-    )}</nav><div class="side-bottom"><strong><span class="dot"></span> Your local workspace</strong><p>Saved data works offline.</p></div></aside><div class="shell"><header class="topbar"><div class="breadcrumbs">Workspace <span>/</span> ${esc(
+    )}</nav><div class="side-bottom"><strong><span class="dot"></span> ${
+    embedded ? "Shared snapshot" : "Your local workspace"
+  }</strong><p>${
+    embedded ? "Save a copy to retain changes." : "Saved data works offline."
+  }</p></div></aside><div class="shell"><header class="topbar"><div class="breadcrumbs">Workspace <span>/</span> ${esc(
     title
-  )}</div><div class="row"><div class="local"><span class="dot"></span> Local server</div><div class="avatar" aria-label="Thank you David">TD</div></div></header><main id="main" class="content"><div class="page-head"><div><h1>${title}</h1><p>${subtitle}</p></div><div class="actions">${
+  )}</div><div class="row"><div class="local"><span class="dot"></span> ${
+    embedded ? "Standalone HTML" : "Local server"
+  }</div><div class="avatar" aria-label="Thank you David">TD</div></div></header><main id="main" class="content"><div class="page-head"><div><h1>${title}</h1><p>${subtitle}</p></div><div class="actions">${
     state.view !== "method"
       ? `<button data-action="export">${icon("download")}Export data</button>`
       : ""
-  }<button class="primary" data-action="import">${icon(
-    "plus"
-  )}Add data</button></div></div>${dataView ? scope() : ""}${
+  }${
+    embedded
+      ? `<button class="primary" data-action="share-html">${icon(
+          "download"
+        )}Save a copy</button>`
+      : `<button class="primary" data-action="import">${icon(
+          "plus"
+        )}Add data</button>`
+  }</div></div>${
+    embedded
+      ? `<div class="notice">Shared snapshot · exported ${esc(
+          new Date(embedded.exportedAt).toLocaleString()
+        )}. Data dates appear in each report. Save a copy to retain changes.</div>`
+      : ""
+  }${dataView ? scope() : ""}${
     dataView && !state.selected.length
       ? empty(
           "Start with a source",
@@ -936,7 +996,11 @@ function sourceDetails(id) {
     }</dd></dl>${(s.notes || [])
       .map((n) => `<p style="margin-top:10px">${esc(n)}</p>`)
       .join("")}`,
-    `<a href="/api/sources/${s.id}/original">Download original file ↓</a><button data-action="close">Close</button>`
+    `${
+      embedded
+        ? `<button data-source-export="${s.id}">Export embedded records ↓</button>`
+        : `<a href="/api/sources/${s.id}/original">Download original file ↓</a>`
+    }<button data-action="close">Close</button>`
   );
 }
 function productDetails(index) {
@@ -1386,6 +1450,23 @@ async function monitorSettings() {
   );
 }
 async function action(name) {
+  if (
+    embedded &&
+    ["import", "monitor-settings", "check-now", "save-monitor"].includes(name)
+  ) {
+    notify("Imports and live refresh require the local server app.");
+    return;
+  }
+  if (name === "share-html" && embedded) {
+    embedded.saveCopy({
+      view: state.view,
+      selected: state.selected,
+      filters: state.filters,
+      brands: state.brands,
+    });
+    notify("A new HTML copy includes your current view and saved changes.");
+    return;
+  }
   switch (name) {
     case "choose-periods":
       choosePeriods();
@@ -1529,7 +1610,11 @@ async function action(name) {
         body: JSON.stringify(state.views),
       });
       $("#dialog").close();
-      notify("View saved. Open it from Data sources.");
+      notify(
+        embedded
+          ? "View saved for this session. Save an HTML copy to keep it."
+          : "View saved. Open it from Data sources."
+      );
       break;
     }
   }
@@ -1582,6 +1667,13 @@ document.addEventListener("click", async (event) => {
       } finally {
         render();
       }
+      return;
+    }
+    if (el.dataset.sourceExport && embedded) {
+      await loadSource(el.dataset.sourceExport);
+      const rows = state.cache.get(el.dataset.sourceExport);
+      if (!rows.length) return notify("This source has no records.");
+      download("wic-source-records.csv", csv(rows, Object.keys(rows[0])));
       return;
     }
     if (el.dataset.source) {
@@ -1751,7 +1843,7 @@ window.addEventListener("hashchange", () => {
 load()
   .then(() => {
     const periods = unique(allRows(), "period").sort();
-    state.filters.period = periods.at(-1) || "";
+    if (!embedded?.initialView) state.filters.period = periods.at(-1) || "";
     render();
     if (state.view === "approvals")
       showCoverage().catch((e) => notify(e.message));
@@ -1761,12 +1853,12 @@ load()
       "#app"
     ).innerHTML = `<main class="empty"><h1>The workspace could not load</h1><p>${esc(
       error.message
-    )}</p><a href="/">Try again</a></main>`;
+    )}</p><a href="${embedded ? location.pathname : "/"}">Try again</a></main>`;
   });
 
 // Refresh visible data after an optional background source check.
 setInterval(async () => {
-  if (document.hidden || $("#dialog").open) return;
+  if (embedded || document.hidden || $("#dialog").open) return;
   try {
     const next = await api("/sources");
     if (
